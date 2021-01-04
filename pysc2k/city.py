@@ -28,7 +28,7 @@ TILE_CORNERS_SE =       (0, 0,  0,  1)
 TILE_CORNERS_SW =       (0, 0,  1,  0)
 TILE_CORNERS_NW =       (1, 0,  0,  0)
 
-WATER_NONE =            (0, 0,  0,  0)
+WATER_NONE =            None
 
 #                       n   e   s   w
 WATER_CANAL_W_E =       (0, 1,  0,  1)
@@ -130,7 +130,7 @@ class RLEChunk( object ):
 
 class SC2kTile( object ):
     def __init__( self ):
-        #self.altitude = 0
+        self.altitude = 0
         self.slope = TILE_CORNERS_NONE
         self.water = WATER_NONE
         self.canal = TILE_CORNERS_NONE
@@ -196,7 +196,7 @@ class SC2kCity( object ):
         for i in range( tiles_sz ):
             if i >= len( self.tiles ):
                 self.tiles.append( SC2kTile() )
-            altitude = ((chunk.data[i] & 0x0f)) * 196
+            altitude = ((chunk.data[i] & 0x0f))
             logger.debug( 'tile altitude: {}'.format( altitude ) )
             self.tiles[i].altitude = altitude
 
@@ -231,7 +231,11 @@ class SC2kCity( object ):
 
             # TODO: Waterfall.
 
-            # TODO: Submerged tiles.
+            # Submerged tiles.
+            if int( chunk.data[i] ) & TILE_SUBMERGED_BYTES:
+                self.tiles[i].submerged = TILE_SUBMERGED_BYTES
+            elif int( chunk.data[i] ) & TILE_SUBMERGED_PARTIAL_BYTES:
+                self.tiles[i].submerged = TILE_SUBMERGED_PARTIAL
 
         logger.debug( '{} tiles loaded'.format( len( self.tiles ) ) )
         assert( TILES_SZ == len( self.tiles ) )
