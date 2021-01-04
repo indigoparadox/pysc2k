@@ -17,7 +17,7 @@ TILE_CORNERS_ALL = (1, 1, 1, 1)
 #                       nw  ne  sw  se
 TILE_CORNERS_NW_NE =    (1, 1,  0,  0)
 TILE_CORNERS_NE_SE =    (0, 1,  0,  1)
-TILE_CORNERS_NE_SW =    (0, 1,  1,  0)
+TILE_CORNERS_SW_SE =    (0, 0,  1,  1)
 TILE_CORNERS_NW_SW =    (1, 0,  1,  0)
 TILE_CORNERS_NW_NE_SE = (1, 1,  0,  1)
 TILE_CORNERS_NE_SW_SE = (0, 1,  1,  1)
@@ -37,6 +37,41 @@ WATER_BAY_N =           (1, 0,  0,  0)
 WATER_BAY_E =           (0, 1,  0,  0)
 WATER_BAY_S =           (0, 0,  1,  0)
 WATER_BAY_W =           (0, 0,  0,  1)
+
+TILE_DRY = 0x0
+TILE_SUBMERGED = 0x1
+TILE_SUBMERGED_PARTIAL = 0x2
+TILE_SURFACE_WATER = 0x3
+
+TILE_SLOPE_BYTES = [
+    TILE_CORNERS_NONE,      # 0x0
+    TILE_CORNERS_NW_NE,     # 0x1
+    TILE_CORNERS_NE_SE,     # 0x2
+    TILE_CORNERS_SW_SE,     # 0x3
+    TILE_CORNERS_NW_SW,     # 0x4
+    TILE_CORNERS_NW_NE_SE,  # 0x5
+    TILE_CORNERS_NE_SW_SE,  # 0x6
+    TILE_CORNERS_NW_SW_SE,  # 0x7
+    TILE_CORNERS_NW_NE_SW,  # 0x8
+    TILE_CORNERS_NE,        # 0x9
+    TILE_CORNERS_SE,        # 0xa
+    TILE_CORNERS_SW,        # 0xb
+    TILE_CORNERS_NW,        # 0xc
+    TILE_CORNERS_ALL,       # 0xd
+]
+
+TILE_SUBMERGED_BYTES = 0x10 # Add to TILE_TERRAIN_BYTES entries above if needed.
+TILE_SUBMERGED_PARTIAL_BYTES = 0x20
+TILE_SURFACE_WATER_BYTES = 0x30
+
+TILE_SURF_BYTES = {
+    0x40: WATER_CANAL_W_E,
+    0x41: WATER_CANAL_N_S,
+    0x42: WATER_BAY_S,
+    0x43: WATER_BAY_W,
+    0x44: WATER_BAY_N,
+    0x45: WATER_BAY_S,
+}
 
 class RLEChunk( object ):
 
@@ -94,9 +129,10 @@ class RLEChunk( object ):
 class SC2kTile( object ):
     def __init__( self ):
         self.altitude = 0
-        self.raised = TILE_CORNERS_NONE
+        self.slope = TILE_CORNERS_NONE
         self.water = WATER_NONE
         self.canal = TILE_CORNERS_NONE
+        self.submerged = TILE_DRY
 
 class SC2kCity( object ):
     
@@ -131,6 +167,14 @@ class SC2kCity( object ):
                 # Decode chunks into city data by chunk type.
                 if 'ALTM' == chunk_iter.name:
                     self._read_alt_map( chunk_iter )
+                elif 'XTER' == chunk_iter.name:
+                    self._read_terrain_map( chunk_iter )
+                elif 'XBLD' == chunk_iter.name:
+                    self._read_buildings( chunk_iter )
+                elif 'XLAB' == chunk_iter.name:
+                    self._read_labels( chunk_iter )
+                elif 'MISC' == chunk_iter.name:
+                    self._read_misc( chunk_iter )
 
                 # Move to the next chunk.
                 file_pos += CHUNK_HEADER_SZ + chunk_iter.size
@@ -138,19 +182,64 @@ class SC2kCity( object ):
 
     def _read_alt_map( self, chunk ):
 
+        ''' Read the altitude map, getting the altitude for each tile. '''
+
         logger = logging.getLogger( 'sc2k.city.tile.read' )
 
-        tiles_sz = int( len( chunk.data ) / 2 )
+        tiles_sz = int( len( chunk.data ) / 2 ) # 2 bytes per tile.
         self.tiles = []
 
         for i in range( tiles_sz ):
             if i >= len( self.tiles ):
                 self.tiles.append( SC2kTile() )
             self.tiles[i].height = (chunk.data[i] & 0xf0) >> 4
-            #logger.debug( 'tile #{}: {}'.format( int( i / 2 ), self.tiles[i].height ) )
+
+    def _read_buildings( self, chunk ):
+        # TODO
+        pass
+
+    def _read_terrain_map( self, chunk ):
+
+        ''' Read the terrain map, getting water/slope for each tile. '''
+
+        # TODO
+        logger = logging.getLogger( 'sc2k.city.terrain.read' )
+
+        tiles_sz = len( chunk.data ) # 1 byte per tile.
+        self.tiles = []
+
+        for i in range( tiles_sz ):
+            if i >= len( self.tiles ):
+                self.tiles.append( SC2kTile() )
+
+            # Determine slope.
+            slope_idx = int( 0x0f & chunk.data[i] )
+            self.tiles[i].slope = TILE_SLOPE_BYTES[slope_idx]
+
+            # Determine surface water.
+            if int( chunk.data[i] ) in TILE_SURF_BYTES:
+                logger.debug( 'found water tile' )
+                self.tiles[i].water = TILE_SURF_BYTES[int( chunk.data[i] )]
+
+            # TODO: Waterfall.
+
+            # TODO: Submerged tiles.
+
+    def _read_underground_map( self, chunk ):
+        # TODO
+        pass
+
+    def _read_labels( self, chunk ):
+        # TODO
+        pass
+
+    def _read_misc( self, chunk ):
+        # TODO
+        pass
 
     @staticmethod
     def _read_tile_terrain( self, tile_bits ):
+        # TODO
         pass
 
     @staticmethod
