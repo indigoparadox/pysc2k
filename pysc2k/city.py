@@ -73,6 +73,8 @@ TILE_SURF_BYTES = {
     0x45: WATER_BAY_S,
 }
 
+TILES_SZ = 128 * 128
+
 class RLEChunk( object ):
 
     # We can't use the python inbuilt chunk because of SC2k's compression.
@@ -128,7 +130,7 @@ class RLEChunk( object ):
 
 class SC2kTile( object ):
     def __init__( self ):
-        self.altitude = 0
+        #self.altitude = 0
         self.slope = TILE_CORNERS_NONE
         self.water = WATER_NONE
         self.canal = TILE_CORNERS_NONE
@@ -139,6 +141,8 @@ class SC2kCity( object ):
     def __init__( self, path ):
 
         logger = logging.getLogger( 'sc2k.city.read' )
+
+        self.tiles = []
 
         with open( path, 'rb' ) as city_file:
 
@@ -166,6 +170,7 @@ class SC2kCity( object ):
 
                 # Decode chunks into city data by chunk type.
                 if 'ALTM' == chunk_iter.name:
+                    logger.debug( 'reading altitude map...' )
                     self._read_alt_map( chunk_iter )
                 elif 'XTER' == chunk_iter.name:
                     self._read_terrain_map( chunk_iter )
@@ -187,12 +192,16 @@ class SC2kCity( object ):
         logger = logging.getLogger( 'sc2k.city.tile.read' )
 
         tiles_sz = int( len( chunk.data ) / 2 ) # 2 bytes per tile.
-        self.tiles = []
 
         for i in range( tiles_sz ):
             if i >= len( self.tiles ):
                 self.tiles.append( SC2kTile() )
-            self.tiles[i].height = (chunk.data[i] & 0xf0) >> 4
+            altitude = ((chunk.data[i] & 0x0f)) * 196
+            logger.debug( 'tile altitude: {}'.format( altitude ) )
+            self.tiles[i].altitude = altitude
+
+        logger.debug( '{} tiles loaded'.format( len( self.tiles ) ) )
+        assert( TILES_SZ == len( self.tiles ) )
 
     def _read_buildings( self, chunk ):
         # TODO
@@ -206,7 +215,6 @@ class SC2kCity( object ):
         logger = logging.getLogger( 'sc2k.city.terrain.read' )
 
         tiles_sz = len( chunk.data ) # 1 byte per tile.
-        self.tiles = []
 
         for i in range( tiles_sz ):
             if i >= len( self.tiles ):
@@ -224,6 +232,9 @@ class SC2kCity( object ):
             # TODO: Waterfall.
 
             # TODO: Submerged tiles.
+
+        logger.debug( '{} tiles loaded'.format( len( self.tiles ) ) )
+        assert( TILES_SZ == len( self.tiles ) )
 
     def _read_underground_map( self, chunk ):
         # TODO
